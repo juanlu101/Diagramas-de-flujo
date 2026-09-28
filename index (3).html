@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagramas de flujo</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='2' width='20' height='8' rx='4' fill='%2315803d'/%3E%3Cpath d='M16 10v5' stroke='%23333' stroke-width='2'/%3E%3Cpath d='M16 15l9 6-9 6-9-6z' fill='%23ca8a04'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#eef1f6;--panel:#fff;--ink:#1f2937;--muted:#6b7280;--line:#d6dbe4;--accent:#2563eb;--accent-soft:#e6edff;--danger:#dc2626}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column}
+header{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:19px;margin:0 auto 4px 0;display:flex;align-items:center;gap:8px}
+.field{display:flex;flex-direction:column;font-size:11px;color:var(--muted);gap:3px;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.field input,.field select{font:inherit;font-size:14px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink);padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;min-width:140px}
+.field input#nombre{min-width:220px}
+.field select{max-width:320px}
+#enunciado{display:none;background:#fffbea;border-bottom:1px solid #f1e0a0;padding:10px 16px;font-size:14px;line-height:1.5;position:relative}
+#enunciado.show{display:block}
+#enunciado .pista{margin-top:4px;color:#7c5c00}
+#enunciado button{position:absolute;right:10px;top:8px;padding:3px 8px;font-size:12px}
+.main{flex:1;display:flex;min-height:0}
+aside{width:220px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+aside h2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:12px 0 2px}
+aside h2:first-child{margin-top:0}
+button{font:inherit;font-size:14px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:7px 10px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px}
+button:hover{border-color:var(--accent);background:var(--accent-soft)}
+button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent);justify-content:center;font-weight:600}
+button.primary:hover{background:#1d4ed8}
+button.danger:hover{border-color:var(--danger);background:#fee2e2}
+.row{display:flex;gap:6px}.row button{flex:1;justify-content:center;padding:7px 4px}
+.shape-btn svg{flex:none}
+label.check{font-size:13px;display:flex;gap:6px;align-items:center}
+#ctx{display:none;flex-direction:column;gap:6px;padding:8px;background:var(--accent-soft);border-radius:10px;margin-top:6px}
+#ctx.show{display:flex}
+#ctx .t{font-size:12px;font-weight:700;color:var(--accent)}
+details{font-size:13px;line-height:1.45}
+details summary{cursor:pointer;font-weight:600;padding:4px 0}
+details ul{padding-left:18px;margin:4px 0}
+#zoomlbl{flex:0 0 52px;text-align:center;font-size:13px;align-self:center}
+#wrap{flex:1;overflow:auto;position:relative;background:#fff}
+#canvas{display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+.node{cursor:move}
+.port{opacity:0;cursor:crosshair;transition:opacity .15s}
+.node:hover .port,.node.sel .port{opacity:1}
+#hint{position:absolute;top:120px;left:60px;color:#94a3b8;font-size:18px;pointer-events:none;line-height:1.6}
+#editor{position:absolute;display:none;z-index:5;font-family:Arial,Helvetica,sans-serif;text-align:center;border:2px solid var(--accent);border-radius:6px;padding:6px;resize:none;outline:none;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+#status,#toast{position:fixed;left:50%;transform:translateX(-50%);padding:9px 16px;border-radius:999px;font-size:14px;z-index:20;display:none;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+#status{bottom:18px;background:var(--accent);color:#fff}
+#toast{bottom:64px;background:#111827;color:#fff}
+#modal{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}
+#modal.show{display:flex}
+#modal .box{background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:80vh;overflow:auto;padding:18px 20px}
+#modal h3{margin:0 0 10px}
+#modal ul{padding-left:0;list-style:none;margin:0 0 14px}
+#modal li{padding:7px 10px;border-radius:8px;margin-bottom:6px;font-size:14px;line-height:1.4}
+li.err{background:#fee2e2}li.warn{background:#fef3c7}li.ok{background:#dcfce7}
+@media (max-width:760px){
+ .main{flex-direction:column}
+ aside{width:auto;max-height:36vh;border-right:0;border-bottom:1px solid var(--line)}
+ header h1{width:100%}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>🔀 Diagramas de flujo</h1>
+  <label class="field">Nombre y apellidos<input id="nombre" placeholder="Escribe tu nombre" autocomplete="off"></label>
+  <label class="field">Curso / grupo<input id="curso" placeholder="p. ej. 1º ESO B" autocomplete="off"></label>
+  <label class="field">Ejercicio<select id="ejercicio"></select></label>
+</header>
+<div id="enunciado"></div>
+<div class="main">
+<aside>
+  <h2>Añadir símbolo</h2>
+  <button class="shape-btn" data-add="terminal" title="Inicio y Fin del algoritmo"><svg width="30" height="18"><rect x="1" y="2" width="28" height="14" rx="7" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/></svg>Inicio / Fin</button>
+  <button class="shape-btn" data-add="process" title="Una acción o un cálculo"><svg width="30" height="18"><rect x="1" y="2" width="28" height="14" rx="1" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/></svg>Proceso</button>
+  <button class="shape-btn" data-add="io" title="Leer un dato o mostrar un resultado"><svg width="30" height="18"><polygon points="6,2 29,2 24,16 1,16" fill="#f3e8ff" stroke="#7e22ce" stroke-width="1.5"/></svg>Entrada / Salida</button>
+  <button class="shape-btn" data-add="decision" title="Una pregunta con respuesta Sí o No"><svg width="30" height="18"><polygon points="15,1 29,9 15,17 1,9" fill="#fef9c3" stroke="#a16207" stroke-width="1.5"/></svg>Decisión</button>
+  <button class="shape-btn" data-add="subprocess" title="Un conjunto de pasos con nombre propio"><svg width="30" height="18"><rect x="1" y="2" width="28" height="14" rx="1" fill="#ffedd5" stroke="#c2410c" stroke-width="1.5"/><line x1="5" y1="2" x2="5" y2="16" stroke="#c2410c" stroke-width="1.5"/><line x1="25" y1="2" x2="25" y2="16" stroke="#c2410c" stroke-width="1.5"/></svg>Subproceso</button>
+  <label class="check"><input type="checkbox" id="auto" checked> Unir con flecha al añadir</label>
+  <button id="btnConnect">➡️ Modo flecha</button>
+
+  <div id="ctx"></div>
+
+  <h2>Editar</h2>
+  <div class="row"><button id="btnUndo" title="Deshacer (Ctrl+Z)">↶ Deshacer</button><button id="btnRedo" title="Rehacer (Ctrl+Y)">↷ Rehacer</button></div>
+  <button id="btnReview">✅ Revisar diagrama</button>
+  <button id="btnNew" class="danger">🗒️ Empezar de nuevo</button>
+
+  <h2>Vista</h2>
+  <div class="row"><button id="zoomOut">−</button><span id="zoomlbl">100%</span><button id="zoomIn">+</button></div>
+
+  <h2>Entregar y guardar</h2>
+  <button id="btnPNG" class="primary">⬇️ Descargar imagen (PNG)</button>
+  <button id="btnSVG">⬇️ Descargar SVG</button>
+  <button id="btnSave">💾 Guardar para seguir luego</button>
+  <button id="btnOpen">📂 Abrir diagrama guardado</button>
+  <input type="file" id="fileIn" accept=".json,application/json" hidden>
+
+  <h2>Ayuda</h2>
+  <details>
+    <summary>¿Qué significa cada símbolo?</summary>
+    <ul>
+      <li><b>Óvalo</b>: Inicio y Fin.</li>
+      <li><b>Rectángulo</b>: Proceso, una acción o cálculo (p. ej. <i>S = A + B</i>).</li>
+      <li><b>Paralelogramo</b>: Entrada (leer un dato) o Salida (mostrar un resultado).</li>
+      <li><b>Rombo</b>: Decisión, una pregunta cuya respuesta es Sí o No.</li>
+      <li><b>Rectángulo con barras</b>: Subproceso, un grupo de pasos con nombre.</li>
+    </ul>
+  </details>
+  <details>
+    <summary>¿Cómo se usa?</summary>
+    <ul>
+      <li>Pulsa un símbolo para añadirlo. Si hay otro seleccionado, aparece debajo y unido con una flecha.</li>
+      <li>Arrastra los símbolos para colocarlos.</li>
+      <li><b>Doble clic</b> sobre un símbolo o flecha para escribir. <b>Mayús + Intro</b> hace un salto de línea.</li>
+      <li>Para unir dos símbolos, arrastra desde uno de sus <b>puntos azules</b> hasta el otro, o usa <b>Modo flecha</b>.</li>
+      <li>Selecciona una flecha y arrastra su <b>punto central</b> hacia un lado para hacer bucles.</li>
+      <li><b>Supr</b> borra lo seleccionado. <b>Ctrl + Z</b> deshace.</li>
+      <li>Tu trabajo se guarda solo en este navegador. Para entregarlo, pulsa <b>Descargar imagen</b>.</li>
+    </ul>
+  </details>
+</aside>
+<div id="wrap">
+  <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+    <defs id="defs"></defs>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#edf0f5" stroke-width="1"/></pattern>
+    <rect id="bg" width="100%" height="100%" fill="url(#grid)"/>
+    <g id="layer"></g>
+  </svg>
+  <div id="hint">👈 Pulsa <b>Inicio / Fin</b> para empezar tu diagrama.</div>
+  <textarea id="editor" spellcheck="true"></textarea>
+</div>
+</div>
+<div id="status"></div>
+<div id="toast"></div>
+<div id="modal"><div class="box"><h3>Revisión del diagrama</h3><ul id="modalList"></ul><button class="primary" id="modalClose">Entendido</button></div></div>
+
+<script>
+/* ===================== EJERCICIOS ===================== */
+const EJERCICIOS = [
+ {id:'1-1',curso:'1º ESO',titulo:'Lavarse los dientes',texto:'Dibuja los pasos que sigues para lavarte los dientes, desde que coges el cepillo hasta que lo guardas. Usa al menos 5 pasos.',pista:'Solo necesitas Inicio/Fin y Proceso. Cada flecha une un paso con el siguiente.'},
+ {id:'1-2',curso:'1º ESO',titulo:'Preparar un vaso de Cola Cao',texto:'Describe cómo preparas un vaso de leche con cacao: coger el vaso, echar la leche, calentarla, añadir el cacao, remover…',pista:'Piensa en el orden: ¿qué pasaría si remueves antes de echar el cacao?'},
+ {id:'1-3',curso:'1º ESO',titulo:'Sumar dos números',texto:'El programa pide dos números al usuario, los suma y muestra el resultado por pantalla.',pista:'Usa Entrada/Salida para “Leer A”, “Leer B” y “Mostrar S”. El cálculo S = A + B es un Proceso.'},
+ {id:'1-4',curso:'1º ESO',titulo:'Área de un rectángulo',texto:'Pide la base y la altura de un rectángulo, calcula su área y muéstrala.',pista:'Área = base × altura.'},
+ {id:'1-5',curso:'1º ESO',titulo:'Precio con descuento',texto:'Una tienda hace un 20 % de descuento en todo. Pide el precio de un producto y muestra cuánto hay que pagar.',pista:'Primero calcula el descuento (precio × 0,20) y luego réstalo al precio.'},
+ {id:'1-6',curso:'1º ESO',titulo:'¿Llevo paraguas?',texto:'Antes de salir de casa miras por la ventana. Si llueve, coges el paraguas; si no, no lo coges. En los dos casos, terminas saliendo de casa.',pista:'Es tu primera Decisión (rombo). Tiene dos salidas, Sí y No, que después se vuelven a juntar.'},
+ {id:'1-7',curso:'1º ESO',titulo:'¿Aprobado o suspenso?',texto:'Pide la nota de un examen. Si es mayor o igual que 5, muestra “Aprobado”; si no, muestra “Suspenso”.',pista:'La pregunta del rombo es: ¿nota ≥ 5?'},
+ {id:'1-8',curso:'1º ESO',titulo:'¿Par o impar?',texto:'Pide un número. Si el resto de dividirlo entre 2 es 0, muestra “Es par”; si no, muestra “Es impar”.',pista:'El rombo puede decir: ¿el resto de N entre 2 es 0?'},
+ {id:'1-9',curso:'1º ESO',titulo:'Cruzar la calle',texto:'Llegas a un paso de peatones con semáforo. Mientras el semáforo esté en rojo, esperas. Cuando se pone en verde, cruzas.',pista:'Si la respuesta es No, la flecha vuelve hacia arriba, al rombo. ¡Eso es un bucle! Selecciona la flecha y arrastra su punto central hacia un lado.'},
+ {id:'2-1',curso:'2º ESO',titulo:'El mayor de tres números',texto:'Pide tres números A, B y C y muestra cuál es el mayor.',pista:'Necesitas decisiones anidadas: un rombo dentro de una rama de otro rombo.'},
+ {id:'2-2',curso:'2º ESO',titulo:'La nota en palabras',texto:'Pide una nota (0-10) y muestra: Insuficiente (menos de 5), Suficiente (5), Bien (6), Notable (7 u 8) o Sobresaliente (9 o 10). Si la nota no está entre 0 y 10, muestra “Nota no válida”.',pista:'Encadena varios rombos. Empieza comprobando si la nota es válida.'},
+ {id:'2-3',curso:'2º ESO',titulo:'Contar del 1 al 10',texto:'Muestra por pantalla los números del 1 al 10.',pista:'Usa un contador: i = 1. Muestra i, haz i = i + 1 y repite mientras i ≤ 10.'},
+ {id:'2-4',curso:'2º ESO',titulo:'Tabla de multiplicar',texto:'Pide un número N y muestra su tabla de multiplicar, desde N × 1 hasta N × 10.',pista:'Como el anterior, pero mostrando el resultado de N × i.'},
+ {id:'2-5',curso:'2º ESO',titulo:'Sumar hasta el cero',texto:'El usuario va escribiendo números. Cuando escribe un 0, el programa muestra la suma de todos los números que ha escrito.',pista:'Usa un acumulador: suma = 0 al principio y suma = suma + número dentro del bucle.'},
+ {id:'2-6',curso:'2º ESO',titulo:'Media de la clase',texto:'Pide cuántos alumnos hay (N). Después pide la nota de cada uno y, al final, muestra la nota media y cuántos alumnos han aprobado.',pista:'Necesitas un contador de alumnos, un acumulador para la suma y otro contador para los aprobados.'},
+ {id:'2-7',curso:'2º ESO',titulo:'Año bisiesto',texto:'Pide un año y di si es bisiesto. Un año es bisiesto si es divisible entre 4, excepto los divisibles entre 100, salvo que también lo sean entre 400.',pista:'Compruébalo con 2024 (sí), 1900 (no) y 2000 (sí).'},
+ {id:'2-8',curso:'2º ESO',titulo:'Adivina el número',texto:'El ordenador piensa un número secreto del 1 al 100. El jugador intenta adivinarlo y, tras cada intento, el programa dice “Es mayor” o “Es menor”. Al acertar, muestra cuántos intentos ha necesitado.',pista:'Combina un bucle, decisiones anidadas y un contador de intentos.'},
+ {id:'2-9',curso:'2º ESO',titulo:'Cajero automático',texto:'El cajero pide el PIN. Si es correcto, el usuario elige entre “Sacar dinero” o “Consultar saldo”. Si falla el PIN 3 veces, el cajero se queda con la tarjeta.',pista:'Usa el símbolo Subproceso para “Sacar dinero” y “Consultar saldo”. Cuenta los intentos fallidos.'},
+ {id:'2-10',curso:'2º ESO',titulo:'Reto: máquina expendedora',texto:'El usuario elige un producto. Si no quedan unidades, la máquina avisa y deja elegir otro. Si quedan, pide monedas hasta llegar al precio y devuelve el cambio.',pista:'Divide el problema en subprocesos: Elegir producto, Cobrar y Dar cambio.'}
+];
+
+/* ===================== CONFIGURACIÓN ===================== */
+const W=3000,H=2000,GRID=10,FONT='Arial, Helvetica, sans-serif',FS=14,LH=18,KEY='diagramaFlujo_v1';
+const TYPES={
+ terminal:{name:'Inicio / Fin',w:140,h:60,fill:'#dcfce7',stroke:'#15803d',text:'Inicio'},
+ process:{name:'Proceso',w:160,h:60,fill:'#dbeafe',stroke:'#1d4ed8',text:'Proceso'},
+ io:{name:'Entrada / Salida',w:180,h:60,fill:'#f3e8ff',stroke:'#7e22ce',text:'Leer dato'},
+ decision:{name:'Decisión',w:180,h:100,fill:'#fef9c3',stroke:'#a16207',text:'¿Condición?'},
+ subprocess:{name:'Subproceso',w:180,h:60,fill:'#ffedd5',stroke:'#c2410c',text:'Subproceso'}
+};
+const DEFS=`<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f2937"/></marker><marker id="arrowSel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>`;
+
+const $=s=>document.querySelector(s);
+const svg=$('#canvas'),layer=$('#layer'),wrap=$('#wrap'),editor=$('#editor');
+$('#defs').innerHTML=DEFS;
+let state={nodes:[],edges:[],next:1};
+let sel=null,drag=null,zoom=1,connectMode=false,connectFrom=null,editing=null,lastTap={};
+let history=[],future=[];
+const measureCtx=document.createElement('canvas').getContext('2d');
+
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const snap=v=>Math.round(v/GRID)*GRID;
+const up20=v=>Math.ceil(v/20)*20;
+const getNode=id=>state.nodes.find(n=>n.id===id);
+const getEdge=id=>state.edges.find(e=>e.id===id);
+const center=n=>({x:n.x+n.w/2,y:n.y+n.h/2});
+const short=t=>{t=String(t).split('\n')[0].trim()||'(sin texto)';return t.length>30?t.slice(0,28)+'…':t};
+
+/* ===================== GEOMETRÍA ===================== */
+function clip(n,tx,ty){
+ const c=center(n),dx=tx-c.x,dy=ty-c.y;
+ if(!dx&&!dy)return c;
+ const hw=n.w/2,hh=n.h/2;let t;
+ if(n.type==='decision')t=1/(Math.abs(dx)/hw+Math.abs(dy)/hh);
+ else t=Math.min(dx?hw/Math.abs(dx):Infinity,dy?hh/Math.abs(dy):Infinity);
+ return{x:c.x+dx*t,y:c.y+dy*t};
+}
+function vHit(n,x,top){
+ const c=center(n),hw=n.w/2,hh=n.h/2;
+ const off=n.type==='decision'?hh*Math.max(0,1-Math.abs(x-c.x)/hw):hh;
+ return top?c.y-off:c.y+off;
+}
+function edgeGeom(e,a,b){
+ const ca=center(a),cb=center(b);
+ if(e.bx!=null){
+  const bx=e.bx,sIn=Math.abs(bx-ca.x)<a.w/2,eIn=Math.abs(bx-cb.x)<b.w/2,down=cb.y>ca.y;
+  if(!sIn&&!eIn){const s=clip(a,bx,ca.y),t=clip(b,bx,cb.y);return{pts:[s,{x:bx,y:ca.y},{x:bx,y:cb.y},t],lx:(s.x+bx)/2,ly:ca.y,hx:bx,hy:(ca.y+cb.y)/2};}
+  if(!sIn&&eIn){const s=clip(a,bx,ca.y),t={x:bx,y:vHit(b,bx,down)};return{pts:[s,{x:bx,y:ca.y},t],lx:(s.x+bx)/2,ly:ca.y,hx:bx,hy:(ca.y+t.y)/2};}
+  if(sIn&&!eIn){const s={x:bx,y:vHit(a,bx,!down)},t=clip(b,bx,cb.y);return{pts:[s,{x:bx,y:cb.y},t],lx:bx,ly:s.y+(down?22:-22),hx:bx,hy:(s.y+cb.y)/2};}
+ }
+ const s=clip(a,cb.x,cb.y),t=clip(b,ca.x,ca.y);
+ return{pts:[s,t],lx:s.x+(t.x-s.x)*.35,ly:s.y+(t.y-s.y)*.35,hx:(s.x+t.x)/2,hy:(s.y+t.y)/2};
+}
+const pathD=pts=>'M'+pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' L');
+
+/* ===================== DIBUJO ===================== */
+function shapeMarkup(n,stroke,sw){
+ const t=TYPES[n.type],w=n.w,h=n.h,a=`fill="${t.fill}" stroke="${stroke}" stroke-width="${sw}"`;
+ switch(n.type){
+  case'terminal':return`<rect width="${w}" height="${h}" rx="${h/2}" ${a}/>`;
+  case'process':return`<rect width="${w}" height="${h}" rx="3" ${a}/>`;
+  case'io':{const s=Math.min(20,w/5);return`<polygon points="${s},0 ${w},0 ${w-s},${h} 0,${h}" ${a}/>`;}
+  case'decision':return`<polygon points="${w/2},0 ${w},${h/2} ${w/2},${h} 0,${h/2}" ${a}/>`;
+  case'subprocess':return`<rect width="${w}" height="${h}" rx="3" ${a}/><line x1="12" y1="0" x2="12" y2="${h}" stroke="${stroke}" stroke-width="${sw}"/><line x1="${w-12}" y1="0" x2="${w-12}" y2="${h}" stroke="${stroke}" stroke-width="${sw}"/>`;
+ }
+}
+function textMarkup(n){
+ const lines=String(n.text).split('\n'),y0=n.h/2-(lines.length-1)*LH/2+FS*.35;
+ return`<text text-anchor="middle" font-family="${FONT}" font-size="${FS}" fill="#111827" pointer-events="none">`+
+  lines.map((l,i)=>`<tspan x="${n.w/2}" y="${(y0+i*LH).toFixed(1)}">${esc(l)||'&#160;'}</tspan>`).join('')+'</text>';
+}
+function nodeMarkup(n,ui){
+ const t=TYPES[n.type],isSel=ui&&sel&&sel.kind==='node'&&sel.id===n.id,isFrom=ui&&connectFrom===n.id;
+ let s=`<g transform="translate(${n.x},${n.y})"${ui?` data-node="${n.id}" class="node${isSel?' sel':''}"`:''}>`;
+ s+=shapeMarkup(n,isSel||isFrom?'#2563eb':t.stroke,isSel||isFrom?3:2)+textMarkup(n);
+ if(ui)[[n.w/2,0],[n.w,n.h/2],[n.w/2,n.h],[0,n.h/2]].forEach(([x,y])=>s+=`<circle class="port" data-port="${n.id}" cx="${x}" cy="${y}" r="7" fill="#fff" stroke="#2563eb" stroke-width="2"/>`);
+ return s+'</g>';
+}
+function edgeLine(e,ui){
+ const a=getNode(e.from),b=getNode(e.to);if(!a||!b)return'';
+ const g=edgeGeom(e,a,b),d=pathD(g.pts),isSel=ui&&sel&&sel.kind==='edge'&&sel.id===e.id;
+ let s='';
+ if(ui)s+=`<path d="${d}" data-edge="${e.id}" fill="none" stroke="transparent" stroke-width="16" style="cursor:pointer"/>`;
+ s+=`<path d="${d}" fill="none" stroke="${isSel?'#2563eb':'#1f2937'}" stroke-width="2" stroke-linejoin="round" marker-end="url(#${isSel?'arrowSel':'arrow'})" pointer-events="none"/>`;
+ return s;
+}
+function edgeExtras(e,ui){
+ const a=getNode(e.from),b=getNode(e.to);if(!a||!b)return'';
+ const g=edgeGeom(e,a,b),isSel=ui&&sel&&sel.kind==='edge'&&sel.id===e.id;let s='';
+ if(e.label){
+  measureCtx.font=`bold 13px ${FONT}`;const w=measureCtx.measureText(e.label).width+12;
+  s+=`<g${ui?` data-edge="${e.id}" style="cursor:pointer"`:''}><rect x="${(g.lx-w/2).toFixed(1)}" y="${(g.ly-11).toFixed(1)}" width="${w.toFixed(1)}" height="22" rx="5" fill="#fff" stroke="${isSel?'#2563eb':'#cbd5e1'}"/><text x="${g.lx.toFixed(1)}" y="${(g.ly+4.5).toFixed(1)}" text-anchor="middle" font-family="${FONT}" font-size="13" font-weight="bold" fill="#111827">${esc(e.label)}</text></g>`;
+ }
+ if(isSel)s+=`<circle data-bend="${e.id}" cx="${g.hx}" cy="${g.hy}" r="8" fill="#2563eb" stroke="#fff" stroke-width="2" style="cursor:ew-resize"><title>Arrastra para rodear</title></circle>`;
+ return s;
+}
+function render(){
+ let s='';
+ state.edges.forEach(e=>s+=edgeLine(e,true));
+ state.nodes.forEach(n=>s+=nodeMarkup(n,true));
+ state.edges.forEach(e=>s+=edgeExtras(e,true));
+ if(drag&&drag.mode==='connect'){const c=center(getNode(drag.from));s+=`<line x1="${c.x}" y1="${c.y}" x2="${drag.x}" y2="${drag.y}" stroke="#2563eb" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrowSel)" pointer-events="none"/>`;}
+ layer.innerHTML=s;
+ $('#hint').style.display=state.nodes.length?'none':'block';
+ updateCtx();
+}
+
+/* ===================== ESTADO ===================== */
+function pushHistory(){history.push(JSON.stringify(state));if(history.length>150)history.shift();future=[];}
+function undo(){if(!history.length)return toast('No hay nada que deshacer');future.push(JSON.stringify(state));state=JSON.parse(history.pop());sel=null;render();save();}
+function redo(){if(!future.length)return;history.push(JSON.stringify(state));state=JSON.parse(future.pop());sel=null;render();save();}
+function meta(){return{nombre:$('#nombre').value,curso:$('#curso').value,ejercicio:$('#ejercicio').value};}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({state,meta:meta()}));}catch(err){}}
+function load(){
+ try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.state&&Array.isArray(d.state.nodes)){state=d.state;applyMeta(d.meta||{});}}catch(err){}
+}
+function applyMeta(m){
+ $('#nombre').value=m.nombre||'';$('#curso').value=m.curso||'';
+ $('#ejercicio').value=EJERCICIOS.some(x=>x.id===m.ejercicio)?m.ejercicio:'';showEnunciado();
+}
+function measure(text){measureCtx.font=`${FS}px ${FONT}`;return Math.max(0,...String(text).split('\n').map(l=>measureCtx.measureText(l).width));}
+function autosize(n){
+ const t=TYPES[n.type],lines=String(n.text).split('\n').length,tw=measure(n.text),c=center(n);
+ let w,h;
+ if(n.type==='decision'){w=Math.max(t.w,tw*1.7+40);h=Math.max(t.h,lines*LH*1.9+30);}
+ else{const pad={io:60,subprocess:50,terminal:44}[n.type]||30;w=Math.max(t.w,tw+pad);h=Math.max(t.h,lines*LH+24);}
+ n.w=up20(w);n.h=up20(h);n.x=snap(c.x)-n.w/2;n.y=snap(c.y-n.h/2);
+}
+const overlap=(a,b)=>a!==b&&a.x<b.x+b.w+10&&b.x<a.x+a.w+10&&a.y<b.y+b.h+10&&b.y<a.y+a.h+10;
+
+function addNode(type){
+ closeEditor(true);
+ const t=TYPES[type];pushHistory();
+ let text=t.text;
+ if(type==='terminal'&&state.nodes.some(n=>n.type==='terminal'))text='Fin';
+ const n={id:state.next++,type,text,w:t.w,h:t.h,x:0,y:0};
+ let base=sel&&sel.kind==='node'?getNode(sel.id):null,cx,cy;
+ if(base){cx=center(base).x;cy=base.y+base.h+50+n.h/2;}
+ else if(state.nodes.length){const low=state.nodes.reduce((a,b)=>a.y+a.h>b.y+b.h?a:b);cx=center(low).x;cy=low.y+low.h+50+n.h/2;}
+ else{cx=(wrap.scrollLeft+wrap.clientWidth/2)/zoom;cy=(wrap.scrollTop+60)/zoom+n.h/2;}
+ n.x=snap(cx)-n.w/2;n.y=snap(cy-n.h/2);
+ let guard=0;while(state.nodes.some(o=>overlap(o,n))&&guard++<40){if(base)n.x+=220;else n.y+=80;}
+ n.x=Math.max(0,n.x);n.y=Math.max(0,n.y);
+ state.nodes.push(n);
+ const baseIsEnd=base&&base.type==='terminal'&&state.edges.some(e=>e.to===base.id);
+ if(base&&$('#auto').checked&&!baseIsEnd)makeEdge(base.id,n.id);
+ sel={kind:'node',id:n.id};render();save();reveal(n);
+}
+function makeEdge(from,to){
+ if(from===to||state.edges.some(e=>e.from===from&&e.to===to))return false;
+ let label='';const a=getNode(from);
+ if(a&&a.type==='decision'){const k=state.edges.filter(e=>e.from===from).length;label=k===0?'Sí':k===1?'No':'';}
+ const e={id:state.next++,from,to,label,bx:null};state.edges.push(e);return e;
+}
+function addEdge(from,to){
+ if(from===to||state.edges.some(e=>e.from===from&&e.to===to))return;
+ pushHistory();const e=makeEdge(from,to);sel={kind:'edge',id:e.id};render();save();
+}
+function deleteSel(){
+ if(!sel)return;pushHistory();
+ if(sel.kind==='node'){state.nodes=state.nodes.filter(n=>n.id!==sel.id);state.edges=state.edges.filter(e=>e.from!==sel.id&&e.to!==sel.id);}
+ else state.edges=state.edges.filter(e=>e.id!==sel.id);
+ sel=null;render();save();
+}
+function reveal(n){
+ const x=n.x*zoom,y=n.y*zoom,w=n.w*zoom,h=n.h*zoom;
+ if(y+h>wrap.scrollTop+wrap.clientHeight-20)wrap.scrollTop=y+h-wrap.clientHeight+60;
+ if(y<wrap.scrollTop)wrap.scrollTop=y-40;
+ if(x+w>wrap.scrollLeft+wrap.clientWidth-20)wrap.scrollLeft=x+w-wrap.clientWidth+60;
+ if(x<wrap.scrollLeft)wrap.scrollLeft=x-40;
+}
+
+/* ===================== PANEL CONTEXTUAL ===================== */
+function updateCtx(){
+ const c=$('#ctx');
+ if(!sel||(sel.kind==='node'&&!getNode(sel.id))||(sel.kind==='edge'&&!getEdge(sel.id))){c.className='';c.innerHTML='';return;}
+ c.className='show';
+ if(sel.kind==='node'){
+  c.innerHTML=`<div class="t">Seleccionado: ${TYPES[getNode(sel.id).type].name}</div><button data-act="edit">✏️ Escribir texto</button><button data-act="del" class="danger">🗑️ Borrar símbolo</button>`;
+ }else{
+  c.innerHTML=`<div class="t">Flecha seleccionada</div><div class="row"><button data-act="lab-Sí">Sí</button><button data-act="lab-No">No</button><button data-act="lab-">Sin texto</button></div><button data-act="edit">✏️ Otro texto</button><div class="row"><button data-act="flip" title="Cambiar el sentido">⇄ Invertir</button><button data-act="straight" title="Quitar el rodeo">📏 Recta</button></div><button data-act="del" class="danger">🗑️ Borrar flecha</button>`;
+ }
+}
+$('#ctx').addEventListener('click',ev=>{
+ const b=ev.target.closest('[data-act]');if(!b||!sel)return;const act=b.dataset.act;
+ if(act==='edit')return openEditor(sel.kind,sel.id);
+ if(act==='del')return deleteSel();
+ const e=getEdge(sel.id);if(!e)return;pushHistory();
+ if(act.startsWith('lab-'))e.label=act.slice(4);
+ else if(act==='flip'){[e.from,e.to]=[e.to,e.from];}
+ else if(act==='straight')e.bx=null;
+ render();save();
+});
+
+/* ===================== EDITOR DE TEXTO ===================== */
+function openEditor(kind,id){
+ closeEditor(true);
+ let x,y,w,h,val;
+ if(kind==='node'){const n=getNode(id);if(!n)return;w=Math.max(n.w,180);h=Math.max(n.h,64);x=n.x+n.w/2-w/2;y=n.y+n.h/2-h/2;val=n.text;}
+ else{const e=getEdge(id);if(!e)return;const g=edgeGeom(e,getNode(e.from),getNode(e.to));w=130;h=40;x=g.lx-65;y=g.ly-20;val=e.label||'';}
+ editing={kind,id};
+ Object.assign(editor.style,{left:x*zoom+'px',top:y*zoom+'px',width:w*zoom+'px',height:h*zoom+'px',fontSize:Math.max(12,14*zoom)+'px',display:'block'});
+ editor.value=val;editor.focus();editor.select();
+}
+function closeEditor(commit){
+ if(!editing)return;const ed=editing;editing=null;editor.style.display='none';
+ if(!commit)return;
+ const v=editor.value.replace(/\s+$/,'');
+ if(ed.kind==='node'){const n=getNode(ed.id);if(n&&v!==n.text){pushHistory();n.text=v;autosize(n);}}
+ else{const e=getEdge(ed.id);if(e&&v.trim()!==(e.label||'')){pushHistory();e.label=v.trim();}}
+ render();save();
+}
+editor.addEventListener('keydown',ev=>{
+ ev.stopPropagation();
+ if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();closeEditor(true);}
+ else if(ev.key==='Escape'){closeEditor(false);}
+});
+editor.addEventListener('blur',()=>closeEditor(true));
+
+/* ===================== RATÓN / TÁCTIL ===================== */
+function pt(ev){const p=svg.createSVGPoint();p.x=ev.clientX;p.y=ev.clientY;return p.matrixTransform(svg.getScreenCTM().inverse());}
+function isDoubleTap(kind,id){const now=Date.now(),d=lastTap.kind===kind&&lastTap.id===id&&now-lastTap.t<420;lastTap=d?{}:{kind,id,t:now};return d;}
+
+svg.addEventListener('pointerdown',ev=>{
+ if(ev.button>0)return;
+ closeEditor(true);
+ const p=pt(ev),tg=ev.target;
+ const port=tg.closest('[data-port]');
+ if(port&&!connectMode){drag={mode:'connect',from:+port.dataset.port,x:p.x,y:p.y};svg.setPointerCapture(ev.pointerId);return;}
+ const bh=tg.closest('[data-bend]');
+ if(bh){const id=+bh.dataset.bend;if(isDoubleTap('bend',id)){pushHistory();getEdge(id).bx=null;render();save();return;}drag={mode:'bend',id,pushed:false};svg.setPointerCapture(ev.pointerId);return;}
+ const ng=tg.closest('[data-node]');
+ if(ng){
+  const id=+ng.dataset.node;
+  if(connectMode){
+   if(connectFrom==null){connectFrom=id;sel={kind:'node',id};setStatus('Ahora pulsa el símbolo de <b>destino</b>');render();}
+   else if(connectFrom!==id){addEdge(connectFrom,id);connectFrom=null;setStatus('Pulsa el símbolo de <b>origen</b> de la flecha');render();}
+   return;
+  }
+  if(isDoubleTap('node',id)){ev.preventDefault();setTimeout(()=>openEditor('node',id),0);return;}
+  const changed=!(sel&&sel.kind==='node'&&sel.id===id);
+  sel={kind:'node',id};const n=getNode(id);
+  drag={mode:'move',id,dx:p.x-n.x,dy:p.y-n.y,pushed:false};
+  svg.setPointerCapture(ev.pointerId);
+  if(changed)render();
+  return;
+ }
+ const eg=tg.closest('[data-edge]');
+ if(eg){const id=+eg.dataset.edge;if(isDoubleTap('edge',id)){ev.preventDefault();setTimeout(()=>openEditor('edge',id),0);return;}if(!(sel&&sel.kind==='edge'&&sel.id===id)){sel={kind:'edge',id};render();}return;}
+ lastTap={};
+ if(sel||connectFrom!=null){sel=null;if(connectMode){connectFrom=null;setStatus('Pulsa el símbolo de <b>origen</b> de la flecha');}render();}
+});
+svg.addEventListener('pointermove',ev=>{
+ if(!drag)return;const p=pt(ev);
+ if(drag.mode==='move'){
+  const n=getNode(drag.id);if(!n)return;
+  const nx=Math.max(0,Math.min(W-n.w,snap(p.x-drag.dx+n.w/2)-n.w/2)),ny=Math.max(0,Math.min(H-n.h,snap(p.y-drag.dy)));
+  if(nx===n.x&&ny===n.y)return;
+  if(!drag.pushed){pushHistory();drag.pushed=true;}
+  n.x=nx;n.y=ny;lastTap={};render();
+ }else if(drag.mode==='connect'){drag.x=p.x;drag.y=p.y;render();}
+ else if(drag.mode==='bend'){
+  const e=getEdge(drag.id);const bx=snap(p.x);if(e.bx===bx)return;
+  if(!drag.pushed){pushHistory();drag.pushed=true;}
+  e.bx=bx;render();
+ }
+});
+function endDrag(ev){
+ if(!drag)return;
+ if(drag.mode==='connect'){
+  const el=document.elementFromPoint(ev.clientX,ev.clientY),ng=el&&el.closest&&el.closest('[data-node]');
+  const from=drag.from;drag=null;
+  if(ng&&+ng.dataset.node!==from)addEdge(from,+ng.dataset.node);else render();
+  return;
+ }
+ const moved=drag.pushed;drag=null;if(moved)save();
+}
+svg.addEventListener('pointerup',endDrag);
+svg.addEventListener('pointercancel',endDrag);
+
+/* ===================== MODO FLECHA ===================== */
+function setStatus(html){const s=$('#status');s.innerHTML=html;s.style.display=html?'block':'none';}
+function setConnect(on){
+ connectMode=on;connectFrom=null;$('#btnConnect').classList.toggle('on',on);
+ setStatus(on?'Pulsa el símbolo de <b>origen</b> de la flecha':'');render();
+}
+$('#btnConnect').onclick=()=>setConnect(!connectMode);
+
+/* ===================== TECLADO ===================== */
+document.addEventListener('keydown',ev=>{
+ if(ev.target.matches('input,textarea,select'))return;
+ const k=ev.key.toLowerCase(),mod=ev.ctrlKey||ev.metaKey;
+ if(mod&&k==='z'){ev.preventDefault();ev.shiftKey?redo():undo();}
+ else if(mod&&k==='y'){ev.preventDefault();redo();}
+ else if(ev.key==='Delete'||ev.key==='Backspace'){if(sel){ev.preventDefault();deleteSel();}}
+ else if(ev.key==='Escape'){if(connectMode)setConnect(false);sel=null;render();}
+ else if((ev.key==='Enter'||ev.key==='F2')&&sel){ev.preventDefault();openEditor(sel.kind,sel.id);}
+});
+
+/* ===================== REVISIÓN ===================== */
+function review(){
+ const m=[],N=state.nodes,out=id=>state.edges.filter(e=>e.from===id),inn=id=>state.edges.filter(e=>e.to===id);
+ if(!N.length)m.push(['err','El diagrama está vacío.']);
+ else{
+  const terms=N.filter(n=>n.type==='terminal');
+  const starts=terms.filter(n=>out(n.id).length&&!inn(n.id).length),ends=terms.filter(n=>inn(n.id).length&&!out(n.id).length);
+  if(!terms.length)m.push(['err','Faltan los óvalos de Inicio y Fin.']);
+  else{
+   if(!starts.length)m.push(['err','No hay Inicio: debe haber un óvalo del que salga una flecha.']);
+   if(starts.length>1)m.push(['warn','Hay más de un Inicio. Un diagrama solo debe empezar en un sitio.']);
+   if(!ends.length)m.push(['err','No hay Fin: debe haber un óvalo al que llegue una flecha.']);
+  }
+  terms.forEach(n=>{
+   if(inn(n.id).length&&out(n.id).length)m.push(['err',`El óvalo “${short(n.text)}” tiene flechas de entrada y de salida. Un óvalo es Inicio (solo sale) o Fin (solo entra).`]);
+   if(!inn(n.id).length&&!out(n.id).length)m.push(['err',`El óvalo “${short(n.text)}” no está unido a nada.`]);
+   if(out(n.id).length>1)m.push(['err',`Del Inicio “${short(n.text)}” sale más de una flecha.`]);
+  });
+  N.filter(n=>n.type!=='terminal').forEach(n=>{
+   const o=out(n.id),i=inn(n.id),t=short(n.text);
+   if(!i.length)m.push(['err',`A “${t}” no llega ninguna flecha.`]);
+   if(!o.length)m.push(['err',`De “${t}” no sale ninguna flecha: el diagrama se queda atascado ahí.`]);
+   if(n.type==='decision'){
+    if(o.length&&o.length!==2)m.push(['err',`La decisión “${t}” debe tener exactamente 2 salidas (Sí y No). Ahora tiene ${o.length}.`]);
+    else if(o.length===2&&o.some(e=>!e.label))m.push(['warn',`Escribe Sí / No en las flechas que salen de “${t}”.`]);
+    if(!/\?\s*$/.test(n.text.trim()))m.push(['warn',`La decisión “${t}” debería ser una pregunta (termina con “?”).`]);
+   }else if(o.length>1)m.push(['err',`De “${t}” salen ${o.length} flechas. Solo los rombos (decisiones) pueden tener más de una salida.`]);
+   if(n.text.trim()===TYPES[n.type].text||!n.text.trim())m.push(['warn',`Cambia el texto “${t}” por lo que hace ese paso.`]);
+  });
+  if(starts.length){
+   const seen=new Set([starts[0].id]),q=[starts[0].id];
+   while(q.length){const id=q.shift();out(id).forEach(e=>{if(!seen.has(e.to)){seen.add(e.to);q.push(e.to);}});}
+   N.filter(n=>!seen.has(n.id)&&(inn(n.id).length||out(n.id).length)).forEach(n=>m.push(['warn',`No se puede llegar a “${short(n.text)}” siguiendo las flechas desde el Inicio.`]));
+  }
+ }
+ if(!m.length)m.push(['ok','¡Bien hecho! La estructura del diagrama es correcta. Comprueba tú que los pasos resuelven el problema.']);
+ $('#modalList').innerHTML=m.map(([c,t])=>`<li class="${c}">${c==='err'?'❌':c==='warn'?'⚠️':'✅'} ${esc(t)}</li>`).join('');
+ $('#modal').classList.add('show');
+}
+$('#btnReview').onclick=review;
+$('#modalClose').onclick=()=>$('#modal').classList.remove('show');
+$('#modal').onclick=ev=>{if(ev.target.id==='modal')$('#modal').classList.remove('show');};
+
+/* ===================== EXPORTAR ===================== */
+function slug(s){return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_|_$/g,'');}
+function fileBase(){const m=meta();return['diagrama',slug(m.nombre),m.ejercicio?'ej'+m.ejercicio:''].filter(Boolean).join('_');}
+function ejTitle(){const e=EJERCICIOS.find(x=>x.id===$('#ejercicio').value);return e?`${e.curso} · Ej. ${e.id.split('-')[1]}: ${e.titulo}`:'Ejercicio libre';}
+function exportSVG(){
+ if(!state.nodes.length){toast('El diagrama está vacío');return null;}
+ let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+ const inc=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);};
+ state.nodes.forEach(n=>{inc(n.x,n.y);inc(n.x+n.w,n.y+n.h);});
+ state.edges.forEach(e=>{const a=getNode(e.from),b=getNode(e.to);if(!a||!b)return;const g=edgeGeom(e,a,b);g.pts.forEach(p=>inc(p.x,p.y));if(e.label){inc(g.lx-50,g.ly-12);inc(g.lx+50,g.ly+12);}});
+ const M=30,HEAD=78,cw=x1-x0+2*M,w=Math.max(cw,520),h=y1-y0+2*M+HEAD,ox=(w-cw)/2+M-x0,oy=HEAD+M-y0;
+ const m=meta(),fecha=new Date().toLocaleDateString('es-ES');
+ const head=`<text x="${M}" y="30" font-family="${FONT}" font-size="17" font-weight="bold" fill="#111827">${esc(m.nombre||'(sin nombre)')}${m.curso?' — '+esc(m.curso):''}</text><text x="${M}" y="53" font-family="${FONT}" font-size="13" fill="#4b5563">${esc(ejTitle())} · ${fecha}</text><line x1="${M}" y1="${HEAD-10}" x2="${w-M}" y2="${HEAD-10}" stroke="#d1d5db"/>`;
+ let body='';state.edges.forEach(e=>body+=edgeLine(e,false));state.nodes.forEach(n=>body+=nodeMarkup(n,false));state.edges.forEach(e=>body+=edgeExtras(e,false));
+ return{w,h,svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs>${DEFS}</defs><rect width="${w}" height="${h}" fill="#ffffff"/>${head}<g transform="translate(${ox},${oy})">${body}</g></svg>`};
+}
+function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
+function checkName(){if($('#nombre').value.trim())return true;if(confirm('No has escrito tu nombre. ¿Quieres descargarlo igualmente?'))return true;$('#nombre').focus();return false;}
+$('#btnPNG').onclick=()=>{
+ closeEditor(true);const r=exportSVG();if(!r||!checkName())return;
+ const img=new Image();
+ img.onload=()=>{const k=2,c=document.createElement('canvas');c.width=r.w*k;c.height=r.h*k;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.scale(k,k);x.drawImage(img,0,0);c.toBlob(b=>{downloadBlob(b,fileBase()+'.png');toast('Imagen descargada ✔');},'image/png');};
+ img.onerror=()=>toast('No se pudo crear la imagen. Prueba con “Descargar SVG”.');
+ img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(r.svg);
+};
+$('#btnSVG').onclick=()=>{closeEditor(true);const r=exportSVG();if(!r||!checkName())return;downloadBlob(new Blob([r.svg],{type:'image/svg+xml'}),fileBase()+'.svg');toast('SVG descargado ✔');};
+$('#btnSave').onclick=()=>{closeEditor(true);downloadBlob(new Blob([JSON.stringify({app:'diagramas-flujo',version:1,meta:meta(),state},null,1)],{type:'application/json'}),fileBase()+'.json');toast('Archivo guardado ✔ Ábrelo luego con “Abrir diagrama guardado”');};
+$('#btnOpen').onclick=()=>$('#fileIn').click();
+$('#fileIn').onchange=ev=>{
+ const f=ev.target.files[0];if(!f)return;const rd=new FileReader();
+ rd.onload=()=>{try{const d=JSON.parse(rd.result);if(!d.state||!Array.isArray(d.state.nodes))throw 0;pushHistory();state=d.state;applyMeta(d.meta||{});sel=null;render();save();toast('Diagrama abierto ✔');}catch(err){toast('Ese archivo no es un diagrama válido');}};
+ rd.readAsText(f);ev.target.value='';
+};
+
+/* ===================== OTROS BOTONES ===================== */
+document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addNode(b.dataset.add));
+$('#btnUndo').onclick=undo;$('#btnRedo').onclick=redo;
+$('#btnNew').onclick=()=>{if(!state.nodes.length||confirm('¿Borrar todo el diagrama y empezar uno nuevo?')){pushHistory();state={nodes:[],edges:[],next:1};sel=null;render();save();}};
+function setZoom(z){zoom=Math.max(.4,Math.min(2,Math.round(z*10)/10));svg.setAttribute('width',W*zoom);svg.setAttribute('height',H*zoom);$('#zoomlbl').textContent=Math.round(zoom*100)+'%';closeEditor(true);}
+$('#zoomIn').onclick=()=>setZoom(zoom+.1);$('#zoomOut').onclick=()=>setZoom(zoom-.1);
+let toastT;function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>e.style.display='none',2600);}
+
+/* ===================== EJERCICIOS (selector) ===================== */
+(function(){
+ let h='<option value="">Ejercicio libre</option>';
+ ['1º ESO','2º ESO'].forEach(c=>{h+=`<optgroup label="${c}">`+EJERCICIOS.filter(e=>e.curso===c).map(e=>`<option value="${e.id}">${e.id.split('-')[1]}. ${esc(e.titulo)}</option>`).join('')+'</optgroup>';});
+ $('#ejercicio').innerHTML=h;
+})();
+function showEnunciado(){
+ const e=EJERCICIOS.find(x=>x.id===$('#ejercicio').value),box=$('#enunciado');
+ if(!e){box.className='';box.innerHTML='';return;}
+ box.className='show';
+ box.innerHTML=`<button onclick="document.getElementById('enunciado').className=''">Ocultar</button><b>${e.curso} · Ejercicio ${e.id.split('-')[1]}: ${esc(e.titulo)}</b><br>${esc(e.texto)}<div class="pista">💡 <b>Pista:</b> ${esc(e.pista)}</div>`;
+}
+$('#ejercicio').onchange=()=>{showEnunciado();save();};
+$('#nombre').oninput=save;$('#curso').oninput=save;
+
+/* ===================== INICIO ===================== */
+load();setZoom(1);render();
+</script>
+</body>
+</html>
